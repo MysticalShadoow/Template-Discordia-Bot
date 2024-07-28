@@ -2,16 +2,36 @@
 local discordia = require('discordia')
 local client = discordia.Client()
 local fs = require('fs')  -- For reading the commands directory
+local stopwatch = discordia.Stopwatch()  -- For reading the commands directory
 
 -- Define the command prefix
 local prefix = "!"
 
+-- Bot creator's user ID
+local creatorId = "1261343684859924643"
+
 -- Table to hold the loaded commands
 local commands = {}
 
--- Function to load all commands from the commands folder
+local function getScriptPath()
+    local str = debug.getinfo(1, "S").source
+    if str:sub(1, 1) == "@" then
+        local scriptPath = str:sub(2)
+        local lastSlash = scriptPath:match(".*[\\/]")
+        return lastSlash
+    else
+        return nil, "Cannot determine script path"
+    end
+end
+
 local function loadCommands()
-    local path = 'C:/Users/Administrator/Downloads/AstraalMC/commands'
+    local scriptPath, err = getScriptPath()
+    if not scriptPath then
+        print("Error: " .. (err or "Unknown error"))
+        return
+    end
+    
+    local path = scriptPath .. 'commands'
 
     -- Check if the commands directory exists
     if not fs.existsSync(path, 'directory') then
@@ -50,7 +70,51 @@ local function loadCommands()
 end
 
 -- Load commands on startup
+-- Add the reload command
+commands["reload"] = {
+    run = function(client, message, args)
+        if message.author.id ~= creatorId then
+            message.channel:send("You do not have permission to use this command.")
+            return
+        end
+
+        local startTime = os.clock()  -- Start time measurement
+
+        loadCommands()
+        
+        local endTime = os.clock()  -- End time measurement
+
+        local timeTaken = endTime - startTime  -- Calculate elapsed time in seconds
+
+        -- Format the elapsed time to 1 significant figure
+        local formattedTime = string.format("%.1g", timeTaken)
+
+        -- Create the embed table
+        local embed = {
+            title = "Commands Reloaded",
+            description = "All commands have been reloaded successfully.",
+            fields = {
+                {
+                    name = "Time Taken",
+                    value = formattedTime .. " seconds",
+                    inline = true
+                }
+            }, -- Green color
+        }
+
+        -- Send the embed
+        message.channel:send({
+            embed = embed
+        })
+    end,
+    usage = "reload",
+    aliases = {"restart"},
+    description = "Reloads the bot's commands."
+}
+
+
 loadCommands()
+
 
 -- Event handler for when the bot is ready
 client:on('ready', function()
