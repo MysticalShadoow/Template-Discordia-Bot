@@ -6,7 +6,15 @@ local sayCommand = {
 
 -- Define the command function
 function sayCommand.run(client, message, args)
-    message.channel:send(args)
+    -- Create the embed table
+    local embed = {
+        description = args-- Green color for the embed
+    }
+
+    -- Send the embed
+    message.channel:send({
+        embed = embed
+    })
 end
 
 return sayCommand
