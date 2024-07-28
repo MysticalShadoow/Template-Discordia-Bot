@@ -2,7 +2,6 @@
 local discordia = require('discordia')
 local client = discordia.Client()
 local fs = require('fs')  -- For reading the commands directory
-local stopwatch = discordia.Stopwatch()  -- For reading the commands directory
 
 -- Define the command prefix
 local prefix = "!"
@@ -24,53 +23,66 @@ local function getScriptPath()
     end
 end
 
+-- Function to recursively load commands from a directory
+local function loadCommandsFromDir(path, indent)
+    indent = indent or ""
+    local success, filesOrDirs = pcall(fs.readdirSync, path)
+    if not success then
+        print(indent .. "Error: Unable to read directory " .. path .. ". " .. filesOrDirs)
+        return
+    end
+
+    for _, name in ipairs(filesOrDirs) do
+        local fullPath = path .. '/' .. name
+        local stats = fs.statSync(fullPath)
+
+        if stats.type == 'directory' then
+            print(indent .. "📁 " .. name)
+            -- Recursively load commands from subdirectories
+            loadCommandsFromDir(fullPath, indent .. "  ")
+        elseif name:match('%.lua$') then
+            local commandName = name:match('^(.-)%.lua$')
+            local success, command = pcall(dofile, fullPath)
+            if success then
+                if type(command) == "table" then
+                    command.usage = command.usage or "Usage not specified"
+                    command.aliases = command.aliases or {}
+                    commands[commandName] = command
+                    print(string.format("%s  📄 %s.lua - Loaded successfully", indent, commandName))
+                else
+                    print(string.format("%s  ❌ %s.lua - Error: Command is not a table", indent, commandName))
+                end
+            else
+                print(string.format("%s  ❌ %s.lua - Failed to load: %s", indent, commandName, command))
+            end
+        end
+    end
+end
+
 local function loadCommands()
     local scriptPath, err = getScriptPath()
     if not scriptPath then
         print("Error: " .. (err or "Unknown error"))
         return
     end
-    
-    local path = scriptPath .. 'commands'
 
-    -- Check if the commands directory exists
+    local path = scriptPath .. 'commands'
     if not fs.existsSync(path, 'directory') then
         print("Error: 'commands' directory does not exist.")
         return
     end
 
-    local success, dir = pcall(fs.readdirSync, path)
-    if not success then
-        print("Error: Unable to read 'commands' directory. Make sure the 'commands' folder exists and is accessible.")
-        return
+    -- Clear the commands table before reloading
+    for k in pairs(commands) do
+        commands[k] = nil
     end
 
-    for _, file in ipairs(dir) do
-        if file:match('%.lua$') then
-            local commandName = file:match('^(.-)%.lua$')
-            local commandPath = path .. '/' .. file
-            local success, command = pcall(dofile, commandPath)
-            if success then
-                -- Check if the loaded command is a table
-                if type(command) == "table" then
-                    -- Add the usage and aliases if provided
-                    command.usage = command.usage or "Usage not specified"
-                    command.aliases = command.aliases or {}
-
-                    commands[commandName] = command
-                    print("Loaded command:", commandName)  -- Print the loaded command
-                else
-                    print("Error: Command from file " .. commandPath .. " is not a table.")
-                end
-            else
-                print("Error: Unable to load command from file " .. commandPath .. ". " .. command)
-            end
-        end
-    end
+    -- Start loading commands from the directory
+    print("Loading commands...")
+    loadCommandsFromDir(path)
 end
 
 -- Load commands on startup
--- Add the reload command
 commands["reload"] = {
     run = function(client, message, args)
         if message.author.id ~= creatorId then
@@ -81,12 +93,9 @@ commands["reload"] = {
         local startTime = os.clock()  -- Start time measurement
 
         loadCommands()
-        
+
         local endTime = os.clock()  -- End time measurement
-
         local timeTaken = endTime - startTime  -- Calculate elapsed time in seconds
-
-        -- Format the elapsed time to 1 significant figure
         local formattedTime = string.format("%.1g", timeTaken)
 
         -- Create the embed table
@@ -99,22 +108,20 @@ commands["reload"] = {
                     value = formattedTime .. " seconds",
                     inline = true
                 }
-            }, -- Green color
+            },
+            color = 0x00FF00 -- Green color
         }
 
         -- Send the embed
-        message.channel:send({
-            embed = embed
-        })
+        message.channel:send({ embed = embed })
     end,
     usage = "reload",
     aliases = {"restart"},
     description = "Reloads the bot's commands."
 }
 
-
+-- Load commands on startup
 loadCommands()
-
 
 -- Event handler for when the bot is ready
 client:on('ready', function()
@@ -155,7 +162,5 @@ client:on('messageCreate', function(message)
         end
     end
 end)
-
-
 -- Log in to Discord with your bot token
 client:run('Bot token')
