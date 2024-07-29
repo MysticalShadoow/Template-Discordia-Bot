@@ -83,6 +83,11 @@ local function loadCommands()
 end
 
 -- Load commands on startup
+
+-- Load commands on startup
+loadCommands()
+
+
 commands["reload"] = {
     run = function(client, message, args)
         if message.author.id ~= creatorId then
@@ -108,8 +113,7 @@ commands["reload"] = {
                     value = formattedTime .. " seconds",
                     inline = true
                 }
-            },
-            color = 0x00FF00 -- Green color
+            },-- Green color
         }
 
         -- Send the embed
@@ -119,9 +123,6 @@ commands["reload"] = {
     aliases = {"restart"},
     description = "Reloads the bot's commands."
 }
-
--- Load commands on startup
-loadCommands()
 
 -- Event handler for when the bot is ready
 client:on('ready', function()
@@ -162,5 +163,6 @@ client:on('messageCreate', function(message)
         end
     end
 end)
+
 -- Log in to Discord with your bot token
 client:run('Bot token')
