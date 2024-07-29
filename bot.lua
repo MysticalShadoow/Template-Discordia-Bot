@@ -80,6 +80,42 @@ local function loadCommands()
     -- Start loading commands from the directory
     print("Loading commands...")
     loadCommandsFromDir(path)
+
+    commands["reload"] = {
+        run = function(discordia, client, message, args)
+            if message.author.id ~= creatorId then
+                message.channel:send("You do not have permission to use this command.")
+                return
+            end
+    
+            local startTime = os.clock()  -- Start time measurement
+    
+            loadCommands()
+    
+            local endTime = os.clock()  -- End time measurement
+            local timeTaken = endTime - startTime  -- Calculate elapsed time in seconds
+            local formattedTime = string.format("%.1g", timeTaken)
+    
+            -- Create the embed table
+            local embed = {
+                title = "Commands Reloaded",
+                description = "All commands have been reloaded successfully.",
+                fields = {
+                    {
+                        name = "Time Taken",
+                        value = formattedTime .. " seconds",
+                        inline = true
+                    }
+                },-- Green color
+            }
+    
+            -- Send the embed
+            message.channel:send({ embed = embed })
+        end,
+        usage = "reload",
+        aliases = {"restart"},
+        description = "Reloads the bot's commands."
+    }
 end
 
 -- Load commands on startup
@@ -87,42 +123,6 @@ end
 -- Load commands on startup
 loadCommands()
 
-
-commands["reload"] = {
-    run = function(client, message, args)
-        if message.author.id ~= creatorId then
-            message.channel:send("You do not have permission to use this command.")
-            return
-        end
-
-        local startTime = os.clock()  -- Start time measurement
-
-        loadCommands()
-
-        local endTime = os.clock()  -- End time measurement
-        local timeTaken = endTime - startTime  -- Calculate elapsed time in seconds
-        local formattedTime = string.format("%.1g", timeTaken)
-
-        -- Create the embed table
-        local embed = {
-            title = "Commands Reloaded",
-            description = "All commands have been reloaded successfully.",
-            fields = {
-                {
-                    name = "Time Taken",
-                    value = formattedTime .. " seconds",
-                    inline = true
-                }
-            },-- Green color
-        }
-
-        -- Send the embed
-        message.channel:send({ embed = embed })
-    end,
-    usage = "reload",
-    aliases = {"restart"},
-    description = "Reloads the bot's commands."
-}
 
 -- Event handler for when the bot is ready
 client:on('ready', function()
@@ -143,7 +143,7 @@ client:on('messageCreate', function(message)
         local command = commands[commandName]
         if command then
             -- Execute the command
-            command.run(client, message, args)
+            command.run(discordia, client, message, args)
         else
             -- Check if there are any aliases for the command
             for _, cmd in pairs(commands) do
@@ -151,7 +151,7 @@ client:on('messageCreate', function(message)
                     for _, alias in ipairs(cmd.aliases) do
                         if alias == commandName then
                             -- Execute the alias command
-                            cmd.run(client, message, args)
+                            cmd.run(discordia, client, message, args)
                             return
                         end
                     end
